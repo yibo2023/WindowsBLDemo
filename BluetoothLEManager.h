@@ -5,7 +5,9 @@
 #include <winrt/Windows.Devices.Bluetooth.h>
 #include <winrt/Windows.Devices.Bluetooth.Advertisement.h>
 #include <winrt/Windows.Devices.Bluetooth.GenericAttributeProfile.h>
-#include <unordered_set>  // 添加这个头文件
+#include <winrt/Windows.Storage.Streams.h>
+#include <unordered_set>
+#include <iostream>
 #include <string>
 #include <vector>
 
@@ -16,6 +18,7 @@ public:
 
     void ScanForDevices();
     void ConnectToDevice(const std::wstring& deviceName);
+    void DisconnectFromDevice();  // 新增的断开连接功能声明
     void SendData(const std::vector<uint8_t>& data);
     void ReceiveData();
     void PrintDevices() const;
@@ -26,6 +29,7 @@ private:
         std::wstring address;
         winrt::hstring id;
         int16_t signalStrength;
+        uint64_t bluetoothAddress;
     };
 
     std::vector<DeviceInfo> devices;
@@ -37,6 +41,8 @@ private:
         winrt::Windows::Devices::Bluetooth::Advertisement::BluetoothLEAdvertisementReceivedEventArgs const& args);
     std::wstring GetDeviceNameFromBluetoothLEDevice(uint64_t bluetoothAddress);
     std::wstring FormatBluetoothAddress(uint64_t address);
+    void OnCharacteristicValueChanged(winrt::Windows::Devices::Bluetooth::GenericAttributeProfile::GattCharacteristic const& sender,
+        winrt::Windows::Devices::Bluetooth::GenericAttributeProfile::GattValueChangedEventArgs const& args);
 };
 
 #endif // BLUETOOTHLEMANAGER_H
