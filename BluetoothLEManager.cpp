@@ -35,9 +35,9 @@ void BluetoothLEManager::ConnectToDevice(const std::wstring& deviceName) {
 
             try {
                 // 使用设备 Address 创建 BluetoothLEDevice 实例
-                connectedDevice = winrt::Windows::Devices::Bluetooth::BluetoothLEDevice::FromBluetoothAddressAsync(device.bluetoothAddress).get();
+                m_connectedDevice = winrt::Windows::Devices::Bluetooth::BluetoothLEDevice::FromBluetoothAddressAsync(device.bluetoothAddress).get();
 
-                if (connectedDevice) {
+                if (m_connectedDevice) {
                     std::wcout << L"Connected to device: " << deviceName << std::endl;
                 }
                 else {
@@ -56,9 +56,9 @@ void BluetoothLEManager::ConnectToDevice(const std::wstring& deviceName) {
 }
 
 void BluetoothLEManager::DisconnectFromDevice() {
-    if (connectedDevice) {
-        connectedDevice.Close();
-        connectedDevice = nullptr;
+    if (m_connectedDevice) {
+        m_connectedDevice.Close();
+        m_connectedDevice = nullptr;
         std::wcout << L"Disconnected from device." << std::endl;
     }
     else {
@@ -66,118 +66,99 @@ void BluetoothLEManager::DisconnectFromDevice() {
     }
 }
 
-void BluetoothLEManager::SendData(const std::vector<uint8_t>& data) {
-    if (!connectedDevice) {
-        std::cerr << "No connected device." << std::endl;
-        return;
+// 获取指定索引的 GATT 服务
+winrt::Windows::Devices::Bluetooth::GenericAttributeProfile::GattDeviceService BluetoothLEManager::GetGattService(uint32_t index) {
+    if (!m_connectedDevice) {
+        throw std::runtime_error("No connected device.");
     }
 
-    // 获取设备的 GATT 服务
-    auto servicesResult = connectedDevice.GetGattServicesAsync().get();
+    auto servicesResult = m_connectedDevice.GetGattServicesAsync().get();
     if (servicesResult.Status() != GattCommunicationStatus::Success) {
-        std::cerr << "Failed to get GATT services." << std::endl;
-        return;
+        throw std::runtime_error("Failed to get GATT services.");
     }
 
     auto services = servicesResult.Services();
-    if (services.Size() == 0) {
-        std::cerr << "No GATT services found." << std::endl;
-        return;
+    if (services.Size() <= index) {
+        throw std::runtime_error("Requested GATT service index out of bounds.");
     }
 
-    // 假设选择第一个服务
-    auto service = services.GetAt(3);
+    return services.GetAt(index);
+}
 
-    // 获取 GATT 特征
+// 获取指定索引的 GATT 特征
+winrt::Windows::Devices::Bluetooth::GenericAttributeProfile::GattCharacteristic BluetoothLEManager::GetGattCharacteristic(const winrt::Windows::Devices::Bluetooth::GenericAttributeProfile::GattDeviceService& service, uint32_t index) {
     auto characteristicsResult = service.GetCharacteristicsAsync().get();
     if (characteristicsResult.Status() != GattCommunicationStatus::Success) {
-        std::cerr << "Failed to get characteristics." << std::endl;
-        return;
+        throw std::runtime_error("Failed to get characteristics.");
     }
 
     auto characteristics = characteristicsResult.Characteristics();
-    if (characteristics.Size() == 0) {
-        std::cerr << "No GATT characteristics found." << std::endl;
-        return;
+    if (characteristics.Size() <= index) {
+        throw std::runtime_error("Requested GATT characteristic index out of bounds.");
     }
 
-    // 假设选择第一个特征
-    auto characteristic = characteristics.GetAt(0);
+    return characteristics.GetAt(index);
+}
 
-    // 创建数据流
-    auto writer = winrt::Windows::Storage::Streams::DataWriter();
-    writer.WriteBytes(winrt::array_view<uint8_t const>(data));
+void BluetoothLEManager::SendData(const std::vector<uint8_t>& data, uint32_t serviceIndex, uint32_t characteristicIndex) {
+    try {
+        auto service = GetGattService(serviceIndex);
+        auto characteristic = GetGattCharacteristic(service, characteristicIndex);
 
-    // 发送数据
-    auto result = characteristic.WriteValueAsync(writer.DetachBuffer()).get();
+        // 创建数据流
+        auto writer = winrt::Windows::Storage::Streams::DataWriter();
+        writer.WriteBytes(winrt::array_view<uint8_t const>(data));
 
-    if (result == GattCommunicationStatus::Success) {
-        std::cout << "Data sent successfully." << std::endl;
+        // 发送数据
+        auto result = characteristic.WriteValueAsync(writer.DetachBuffer()).get();
+
+        if (result == GattCommunicationStatus::Success) {
+            std::cout << "Data sent successfully." << std::endl;
+        }
+        else {
+            std::cerr << "Failed to send data." << std::endl;
+        }
     }
-    else {
-        std::cerr << "Failed to send data." << std::endl;
+    catch (const std::exception& e) {
+        std::cerr << "Exception caught: " << e.what() << std::endl;
     }
 }
 
-void BluetoothLEManager::ReceiveData() {
-    if (!connectedDevice) {
-        std::cerr << "No connected device." << std::endl;
-        return;
+void BluetoothLEManager::ReceiveData(uint32_t serviceIndex, uint32_t characteristicIndex) {
+    try {
+        auto service = GetGattService(serviceIndex);
+        auto characteristic = GetGattCharacteristic(service, characteristicIndex);
+
+        // 注册通知事件处理程序
+        characteristic.ValueChanged({ this, &BluetoothLEManager::OnCharacteristicValueChanged });
+
+        // 启用通知
+        auto result = characteristic.WriteClientCharacteristicConfigurationDescriptorAsync(GattClientCharacteristicConfigurationDescriptorValue::Notify).get();
+
+        if (result == GattCommunicationStatus::Success) {
+            std::cout << "Notifications enabled." << std::endl;
+        }
+        else {
+            std::cerr << "Failed to enable notifications." << std::endl;
+        }
     }
-
-    // 获取设备的 GATT 服务
-    auto servicesResult = connectedDevice.GetGattServicesAsync().get();
-    if (servicesResult.Status() != GattCommunicationStatus::Success) {
-        std::cerr << "Failed to get GATT services." << std::endl;
-        return;
+    catch (const std::exception& e) {
+        std::cerr << "Exception caught: " << e.what() << std::endl;
     }
+}
 
-    auto services = servicesResult.Services();
-    if (services.Size() == 0) {
-        std::cerr << "No GATT services found." << std::endl;
-        return;
-    }
-
-    // 假设选择第一个服务
-    auto service = services.GetAt(3);
-
-    // 获取 GATT 特征
-    auto characteristicsResult = service.GetCharacteristicsAsync().get();
-    if (characteristicsResult.Status() != GattCommunicationStatus::Success) {
-        std::cerr << "Failed to get characteristics." << std::endl;
-        return;
-    }
-
-    auto characteristics = characteristicsResult.Characteristics();
-    if (characteristics.Size() == 0) {
-        std::cerr << "No GATT characteristics found." << std::endl;
-        return;
-    }
-
-    // 假设选择第一个特征
-    auto characteristic = characteristics.GetAt(0);
-
-    // 注册通知事件处理程序
-    characteristic.ValueChanged({ this, &BluetoothLEManager::OnCharacteristicValueChanged });
-
-    // 启用通知
-    auto result = characteristic.WriteClientCharacteristicConfigurationDescriptorAsync(GattClientCharacteristicConfigurationDescriptorValue::Notify).get();
-
-    if (result == GattCommunicationStatus::Success) {
-        std::cout << "Notifications enabled." << std::endl;
-    }
-    else {
-        std::cerr << "Failed to enable notifications." << std::endl;
-    }
+const std::vector<uint8_t>& BluetoothLEManager::GetReceivedData() const {
+    return m_vReceivedData;
 }
 
 void BluetoothLEManager::OnCharacteristicValueChanged(GattCharacteristic const& sender, GattValueChangedEventArgs const& args) {
     auto reader = winrt::Windows::Storage::Streams::DataReader::FromBuffer(args.CharacteristicValue());
-    std::vector<uint8_t> data(reader.UnconsumedBufferLength());
-    reader.ReadBytes(winrt::array_view<uint8_t>(data));
+    m_vReceivedData.clear();
+    m_vReceivedData.resize(reader.UnconsumedBufferLength());
+    reader.ReadBytes(m_vReceivedData);
 
     std::cout << "Received data: ";
-    for (auto byte : data) {
+    for (auto byte : m_vReceivedData) {
         std::cout << std::hex << static_cast<int>(byte) << ' ';
     }
     std::cout << std::endl;

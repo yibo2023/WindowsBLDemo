@@ -1,4 +1,5 @@
 ﻿#include "BluetoothLEManager.h"
+#include "BluetoothLEProtocol.h"
 #include <windows.h>
 #include <iostream>
 #include <string>
@@ -17,10 +18,10 @@ int main() {
 
         // 发送数据到连接的设备
         std::vector<uint8_t> dataToSend = { 0x01, 0x02, 0x03, 0x01, 0x02, 0x03, 0x01, 0x02, 0x03, 0x01, 0x02, 0x03 }; // 示例数据
-        bleManager.SendData(dataToSend);
+        bleManager.SendData(dataToSend,4,0);
 
         // 接收数据从连接的设备
-        bleManager.ReceiveData();
+        bleManager.ReceiveData(4,0);
 
         std::wcout << L"Press Ctrl+C to exit..." << std::endl;
         while (true) {

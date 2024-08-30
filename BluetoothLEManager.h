@@ -19,8 +19,9 @@ public:
     void ScanForDevices();
     void ConnectToDevice(const std::wstring& deviceName);
     void DisconnectFromDevice();  // 新增的断开连接功能声明
-    void SendData(const std::vector<uint8_t>& data);
-    void ReceiveData();
+    void SendData(const std::vector<uint8_t>& data, uint32_t serviceIndex = 0, uint32_t characteristicIndex = 0);
+    void ReceiveData(uint32_t serviceIndex = 0, uint32_t characteristicIndex = 0);
+    const std::vector<uint8_t>& GetReceivedData() const;
     void PrintDevices() const;
 
 private:
@@ -33,8 +34,9 @@ private:
     };
 
     std::vector<DeviceInfo> devices;
+    std::vector<uint8_t> m_vReceivedData;  // 存储接收到的数据
     std::unordered_set<winrt::hstring> deviceIds; // 用于去重的集合
-    winrt::Windows::Devices::Bluetooth::BluetoothLEDevice connectedDevice{ nullptr };
+    winrt::Windows::Devices::Bluetooth::BluetoothLEDevice m_connectedDevice{ nullptr };
     winrt::Windows::Devices::Bluetooth::Advertisement::BluetoothLEAdvertisementWatcher watcher{ nullptr };
 
     void OnAdvertisementReceived(winrt::Windows::Devices::Bluetooth::Advertisement::BluetoothLEAdvertisementWatcher const& sender,
@@ -43,6 +45,11 @@ private:
     std::wstring FormatBluetoothAddress(uint64_t address);
     void OnCharacteristicValueChanged(winrt::Windows::Devices::Bluetooth::GenericAttributeProfile::GattCharacteristic const& sender,
         winrt::Windows::Devices::Bluetooth::GenericAttributeProfile::GattValueChangedEventArgs const& args);
+
+    // 辅助函数：获取指定索引的 GATT 服务和特征
+    winrt::Windows::Devices::Bluetooth::GenericAttributeProfile::GattDeviceService GetGattService(uint32_t index);
+    winrt::Windows::Devices::Bluetooth::GenericAttributeProfile::GattCharacteristic GetGattCharacteristic(
+        const winrt::Windows::Devices::Bluetooth::GenericAttributeProfile::GattDeviceService& service, uint32_t index);
 };
 
 #endif // BLUETOOTHLEMANAGER_H
