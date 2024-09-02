@@ -22,7 +22,7 @@ void BluetoothLEManager::ScanForDevices() {
     std::this_thread::sleep_for(std::chrono::seconds(10)); // Scan for 10 seconds
     watcher.Stop();
 
-    PrintDevices();
+    //PrintDevices();
 }
 
 void BluetoothLEManager::ConnectToDevice(const std::wstring& deviceName) {
@@ -108,6 +108,7 @@ void BluetoothLEManager::SendData(const std::vector<uint8_t>& data, uint32_t ser
         // 创建数据流
         auto writer = winrt::Windows::Storage::Streams::DataWriter();
         writer.WriteBytes(winrt::array_view<uint8_t const>(data));
+        //writer.WriteBytes(data);
 
         // 发送数据
         auto result = characteristic.WriteValueAsync(writer.DetachBuffer()).get();
