@@ -24,6 +24,9 @@ public:
     const std::vector<uint8_t>& GetReceivedData() const;
     void PrintDevices() const;
 
+    // 等待数据接收并进行处理的公共方法
+    void WaitForDataAndProcess();
+
 private:
     struct DeviceInfo {
         std::wstring name;
@@ -36,8 +39,14 @@ private:
     std::vector<DeviceInfo> devices;
     std::vector<uint8_t> m_vReceivedData;  // 存储接收到的数据
     std::unordered_set<winrt::hstring> deviceIds; // 用于去重的集合
+    std::mutex m_mutex;
+    std::condition_variable m_cvBLEManager;
+
+    // BLE
     winrt::Windows::Devices::Bluetooth::BluetoothLEDevice m_connectedDevice{ nullptr };
     winrt::Windows::Devices::Bluetooth::Advertisement::BluetoothLEAdvertisementWatcher watcher{ nullptr };
+    winrt::Windows::Devices::Bluetooth::GenericAttributeProfile::GattDeviceService m_service{ nullptr };
+    winrt::Windows::Devices::Bluetooth::GenericAttributeProfile::GattCharacteristic m_characteristic{ nullptr };
 
     void OnAdvertisementReceived(winrt::Windows::Devices::Bluetooth::Advertisement::BluetoothLEAdvertisementWatcher const& sender,
         winrt::Windows::Devices::Bluetooth::Advertisement::BluetoothLEAdvertisementReceivedEventArgs const& args);

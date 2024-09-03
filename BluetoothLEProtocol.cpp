@@ -14,9 +14,10 @@ void BLEProtocol::ProtoRequest::calculateChecksum(std::vector<uint8_t>& combined
     combinedData.resize(1); // Header should fit in 1 byte
     uint8_t byte = 0;
     byte |= static_cast<uint8_t>(header.type) & 0x03;    // Extract type (2 bits)
-    byte |= (header.length - 2 & 0x3F) << 2;                 // Extract length (6 bits)
+    byte |= (header.length - 2 & 0x3F) << 2;             // Extract length (6 bits)
     combinedData[0] = byte;
     combinedData.push_back(request.id);
+    combinedData.push_back(request.type);
     combinedData.insert(combinedData.end(), request.payload.begin(), request.payload.end());
     combinedData.insert(combinedData.end(), std::begin(request.reserved), std::end(request.reserved));
     checksum = BLEProtocol::calculateChecksum(combinedData.data(), combinedData.size());
@@ -36,25 +37,40 @@ void BLEProtocol::ProtoResponse::calculateChecksum(std::vector<uint8_t>& combine
 
 // Implementation of ProtoNotification's checksum calculation using the unified method
 void BLEProtocol::ProtoNotification::calculateChecksum(std::vector<uint8_t>& combinedData) {
-    combinedData.push_back(static_cast<uint8_t>(header.type));
-    combinedData.push_back(header.length);
-    combinedData.push_back(notification.id);
-    combinedData.push_back(static_cast<uint8_t>(notification.event_id));
-    combinedData.insert(combinedData.end(), notification.payload.begin(), notification.payload.end());
     checksum = BLEProtocol::calculateChecksum(combinedData.data(), combinedData.size());
 }
 
+void BLEProtocol::encodeRequest(ProtoRequest& rqs, std::vector<uint8_t>& combinedData) {
+    rqs.calculateChecksum(combinedData);
+}
 
-void BLEProtocol::dncodeResponse(ProtoResponse& rsp, std::vector<uint8_t>& payload, uint16_t& payload_len) {
+void BLEProtocol::decodeResponse(ProtoResponse& rsp, std::vector<uint8_t>& payload, uint16_t& payload_len) {
     /*rsp.header = Header(MsgType::Response, 0);
     rsp.response = Response(id, err, {});*/
     //rsp.calculateChecksum();
 }
 
-void BLEProtocol::dncodeNotification(ProtoNotification& ntf, std::vector<uint8_t>& payload, uint16_t& payload_len) {
-    /*ntf.header = Header(MsgType::Notification, 0);
-    ntf.notification = Notification(0, event_id, {});*/
-    //ntf.calculateChecksum();
+void BLEProtocol::decodeNotification(std::vector<uint8_t>& receivedData) {
+    uint8_t len = receivedData.front() & 0x3F; // 0011 1111
+    Header header(MsgType::Notification, len);
+
+    uint8_t id = receivedData.at(1);
+    NotifyEventID event_id = (NotifyEventID)receivedData.at(2);
+    std::vector<uint8_t> payload;
+    payload.clear();
+    for (int i = 3; i < receivedData.size() - 1; i++) {
+        payload.push_back(receivedData.at(i));
+    }
+    Notification ntf(id, event_id, payload);
+
+    ProtoNotification pntf(header, ntf);
+
+    uint8_t checksum = receivedData.back();
+    receivedData.pop_back();
+    pntf.calculateChecksum(receivedData);
+    if (checksum != pntf.checksum) {
+        std::wcout << L"checksum :" << checksum << L", calculateChecksum :" << pntf.checksum << std::endl;
+    }
 }
 
 uint8_t BLEProtocol::getProtoLength(const ProtoRequest& proto) {

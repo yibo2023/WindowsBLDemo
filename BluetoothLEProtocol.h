@@ -52,11 +52,12 @@ public:
      */
     struct Request {
         uint8_t id;                     ///< Command ID
+        uint8_t type;                   ///< Command Type
         std::vector<uint8_t> payload;   ///< Message payload
         uint8_t reserved[4] = { 0 };      ///< Reserved bytes
 
-        Request(uint8_t id, const std::vector<uint8_t>& data)
-            : id(id), payload(data) {}
+        Request(uint8_t id, uint8_t type, const std::vector<uint8_t>& data)
+            : id(id), type(type), payload(data) {}
     };
 
     /**
@@ -132,14 +133,14 @@ public:
         void calculateChecksum(std::vector<uint8_t>& combinedData);  ///< Calculate checksum for the notification
     };
 
-    static void dncodeResponse(ProtoResponse& rsp, std::vector<uint8_t>& payload, uint16_t& payload_len);
-    static void dncodeNotification(ProtoNotification& ntf, std::vector<uint8_t>& payload, uint16_t& payload_len);
+    static void encodeRequest(ProtoRequest& rqs, std::vector<uint8_t>& combinedData);
+    static void decodeResponse(ProtoResponse& rsp, std::vector<uint8_t>& payload, uint16_t& payload_len);
+    static void decodeNotification(std::vector<uint8_t>& receivedData);
     static uint8_t getProtoLength(const ProtoRequest& proto);
     static int checkChecksum(const ProtoRequest& proto, uint8_t proto_len, uint8_t sum);
 
+private:
     static uint8_t calculateChecksum(const uint8_t* data, size_t length);
 };
-
-//#pragma pack(pop)
 
 #endif

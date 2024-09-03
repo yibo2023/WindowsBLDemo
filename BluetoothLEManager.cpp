@@ -102,8 +102,15 @@ winrt::Windows::Devices::Bluetooth::GenericAttributeProfile::GattCharacteristic 
 
 void BluetoothLEManager::SendData(const std::vector<uint8_t>& data, uint32_t serviceIndex, uint32_t characteristicIndex) {
     try {
-        auto service = GetGattService(serviceIndex);
-        auto characteristic = GetGattCharacteristic(service, characteristicIndex);
+        // 检查 m_service 是否已经初始化
+        if (!m_service) {
+            m_service = GetGattService(serviceIndex);
+        }
+
+        // 检查 m_characteristic 是否已经初始化
+        if (!m_characteristic) {
+            m_characteristic = GetGattCharacteristic(m_service, characteristicIndex);
+        }
 
         // 创建数据流
         auto writer = winrt::Windows::Storage::Streams::DataWriter();
@@ -111,7 +118,7 @@ void BluetoothLEManager::SendData(const std::vector<uint8_t>& data, uint32_t ser
         //writer.WriteBytes(data);
 
         // 发送数据
-        auto result = characteristic.WriteValueAsync(writer.DetachBuffer()).get();
+        auto result = m_characteristic.WriteValueAsync(writer.DetachBuffer()).get();
 
         if (result == GattCommunicationStatus::Success) {
             std::cout << "Data sent successfully." << std::endl;
@@ -127,20 +134,27 @@ void BluetoothLEManager::SendData(const std::vector<uint8_t>& data, uint32_t ser
 
 void BluetoothLEManager::ReceiveData(uint32_t serviceIndex, uint32_t characteristicIndex) {
     try {
-        auto service = GetGattService(serviceIndex);
-        auto characteristic = GetGattCharacteristic(service, characteristicIndex);
+        // 检查 m_service 是否已经初始化
+        if (!m_service) {
+            m_service = GetGattService(serviceIndex);
+        }
+
+        // 检查 m_characteristic 是否已经初始化
+        if (!m_characteristic) {
+            m_characteristic = GetGattCharacteristic(m_service, characteristicIndex);
+        }
 
         // 注册通知事件处理程序
-        characteristic.ValueChanged({ this, &BluetoothLEManager::OnCharacteristicValueChanged });
+        m_characteristic.ValueChanged({ this, &BluetoothLEManager::OnCharacteristicValueChanged });
 
         // 启用通知
-        auto result = characteristic.WriteClientCharacteristicConfigurationDescriptorAsync(GattClientCharacteristicConfigurationDescriptorValue::Notify).get();
+        auto result = m_characteristic.WriteClientCharacteristicConfigurationDescriptorAsync(GattClientCharacteristicConfigurationDescriptorValue::Notify).get();
 
         if (result == GattCommunicationStatus::Success) {
             std::cout << "Notifications enabled." << std::endl;
         }
         else {
-            std::cerr << "Failed to enable notifications." << std::endl;
+            std::cerr << "Failed to enable notifications. Status: " << static_cast<int>(result) << std::endl;
         }
     }
     catch (const std::exception& e) {
@@ -153,16 +167,23 @@ const std::vector<uint8_t>& BluetoothLEManager::GetReceivedData() const {
 }
 
 void BluetoothLEManager::OnCharacteristicValueChanged(GattCharacteristic const& sender, GattValueChangedEventArgs const& args) {
-    auto reader = winrt::Windows::Storage::Streams::DataReader::FromBuffer(args.CharacteristicValue());
-    m_vReceivedData.clear();
-    m_vReceivedData.resize(reader.UnconsumedBufferLength());
-    reader.ReadBytes(m_vReceivedData);
+    try {
+        std::lock_guard<std::mutex> lock(m_mutex);
+        auto reader = winrt::Windows::Storage::Streams::DataReader::FromBuffer(args.CharacteristicValue());
+        m_vReceivedData.clear();
+        m_vReceivedData.resize(reader.UnconsumedBufferLength());
+        reader.ReadBytes(m_vReceivedData);
 
-    std::cout << "Received data: ";
-    for (auto byte : m_vReceivedData) {
-        std::cout << std::hex << static_cast<int>(byte) << ' ';
+        std::cout << "Received data: ";
+        for (auto byte : m_vReceivedData) {
+            std::cout << std::hex << static_cast<int>(byte) << ' ';
+        }
+        std::cout << std::endl;
+        m_cvBLEManager.notify_one(); // 通知主线程数据已经准备好
     }
-    std::cout << std::endl;
+    catch (const std::exception& e) {
+        std::cerr << "Error processing characteristic value: " << e.what() << std::endl;
+    }
 }
 
 void BluetoothLEManager::PrintDevices() const {
@@ -238,4 +259,10 @@ std::wstring BluetoothLEManager::FormatBluetoothAddress(uint64_t address) {
         << std::setw(2) << ((address >> 8) & 0xFF) << L":"
         << std::setw(2) << (address & 0xFF);
     return stream.str();
+}
+
+// 等待数据接收并进行处理的公共方法
+void BluetoothLEManager::WaitForDataAndProcess() {
+    std::unique_lock<std::mutex> lock(m_mutex);
+    m_cvBLEManager.wait(lock, [this] { return !m_vReceivedData.empty(); });
 }
