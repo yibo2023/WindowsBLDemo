@@ -34,7 +34,7 @@ void BluetoothLEManager::ConnectToDevice(const std::wstring& deviceName) {
             }
 
             try {
-                // Ê¹ÓÃÉè±¸ Address ´´½¨ BluetoothLEDevice ÊµÀı
+                // ä½¿ç”¨è®¾å¤‡ Address åˆ›å»º BluetoothLEDevice å®ä¾‹
                 m_connectedDevice = winrt::Windows::Devices::Bluetooth::BluetoothLEDevice::FromBluetoothAddressAsync(device.bluetoothAddress).get();
 
                 if (m_connectedDevice) {
@@ -45,7 +45,7 @@ void BluetoothLEManager::ConnectToDevice(const std::wstring& deviceName) {
                 }
             }
             catch (const winrt::hresult_error& e) {
-                // ²¶»ñ²¢Êä³öÏêÏ¸µÄÒì³£ĞÅÏ¢
+                // æ•è·å¹¶è¾“å‡ºè¯¦ç»†çš„å¼‚å¸¸ä¿¡æ¯
                 std::wcerr << L"Exception caught: " << e.message().c_str() << std::endl;
                 std::wcerr << L"HResult: 0x" << std::hex << e.code() << std::endl;
             }
@@ -66,7 +66,7 @@ void BluetoothLEManager::DisconnectFromDevice() {
     }
 }
 
-// »ñÈ¡Ö¸¶¨Ë÷ÒıµÄ GATT ·şÎñ
+// è·å–æŒ‡å®šç´¢å¼•çš„ GATT æœåŠ¡
 winrt::Windows::Devices::Bluetooth::GenericAttributeProfile::GattDeviceService BluetoothLEManager::GetGattService(uint32_t index) {
     if (!m_connectedDevice) {
         throw std::runtime_error("No connected device.");
@@ -85,7 +85,7 @@ winrt::Windows::Devices::Bluetooth::GenericAttributeProfile::GattDeviceService B
     return services.GetAt(index);
 }
 
-// »ñÈ¡Ö¸¶¨Ë÷ÒıµÄ GATT ÌØÕ÷
+// è·å–æŒ‡å®šç´¢å¼•çš„ GATT ç‰¹å¾
 winrt::Windows::Devices::Bluetooth::GenericAttributeProfile::GattCharacteristic BluetoothLEManager::GetGattCharacteristic(const winrt::Windows::Devices::Bluetooth::GenericAttributeProfile::GattDeviceService& service, uint32_t index) {
     auto characteristicsResult = service.GetCharacteristicsAsync().get();
     if (characteristicsResult.Status() != GattCommunicationStatus::Success) {
@@ -102,22 +102,22 @@ winrt::Windows::Devices::Bluetooth::GenericAttributeProfile::GattCharacteristic 
 
 void BluetoothLEManager::SendData(const std::vector<uint8_t>& data, uint32_t serviceIndex, uint32_t characteristicIndex) {
     try {
-        // ¼ì²é m_service ÊÇ·ñÒÑ¾­³õÊ¼»¯
+        // æ£€æŸ¥ m_service æ˜¯å¦å·²ç»åˆå§‹åŒ–
         if (!m_service) {
             m_service = GetGattService(serviceIndex);
         }
 
-        // ¼ì²é m_characteristic ÊÇ·ñÒÑ¾­³õÊ¼»¯
+        // æ£€æŸ¥ m_characteristic æ˜¯å¦å·²ç»åˆå§‹åŒ–
         if (!m_characteristic) {
             m_characteristic = GetGattCharacteristic(m_service, characteristicIndex);
         }
 
-        // ´´½¨Êı¾İÁ÷
+        // åˆ›å»ºæ•°æ®æµ
         auto writer = winrt::Windows::Storage::Streams::DataWriter();
         writer.WriteBytes(winrt::array_view<uint8_t const>(data));
         //writer.WriteBytes(data);
 
-        // ·¢ËÍÊı¾İ
+        // å‘é€æ•°æ®
         auto result = m_characteristic.WriteValueAsync(writer.DetachBuffer()).get();
 
         if (result == GattCommunicationStatus::Success) {
@@ -134,20 +134,20 @@ void BluetoothLEManager::SendData(const std::vector<uint8_t>& data, uint32_t ser
 
 void BluetoothLEManager::ReceiveData(uint32_t serviceIndex, uint32_t characteristicIndex) {
     try {
-        // ¼ì²é m_service ÊÇ·ñÒÑ¾­³õÊ¼»¯
+        // æ£€æŸ¥ m_service æ˜¯å¦å·²ç»åˆå§‹åŒ–
         if (!m_service) {
             m_service = GetGattService(serviceIndex);
         }
 
-        // ¼ì²é m_characteristic ÊÇ·ñÒÑ¾­³õÊ¼»¯
+        // æ£€æŸ¥ m_characteristic æ˜¯å¦å·²ç»åˆå§‹åŒ–
         if (!m_characteristic) {
             m_characteristic = GetGattCharacteristic(m_service, characteristicIndex);
         }
 
-        // ×¢²áÍ¨ÖªÊÂ¼ş´¦Àí³ÌĞò
+        // æ³¨å†Œé€šçŸ¥äº‹ä»¶å¤„ç†ç¨‹åº
         m_characteristic.ValueChanged({ this, &BluetoothLEManager::OnCharacteristicValueChanged });
 
-        // ÆôÓÃÍ¨Öª
+        // å¯ç”¨é€šçŸ¥
         auto result = m_characteristic.WriteClientCharacteristicConfigurationDescriptorAsync(GattClientCharacteristicConfigurationDescriptorValue::Notify).get();
 
         if (result == GattCommunicationStatus::Success) {
@@ -179,7 +179,7 @@ void BluetoothLEManager::OnCharacteristicValueChanged(GattCharacteristic const& 
             std::cout << std::hex << static_cast<int>(byte) << ' ';
         }
         std::cout << std::endl;
-        m_cvBLEManager.notify_one(); // Í¨ÖªÖ÷Ïß³ÌÊı¾İÒÑ¾­×¼±¸ºÃ
+        m_cvBLEManager.notify_one(); // é€šçŸ¥ä¸»çº¿ç¨‹æ•°æ®å·²ç»å‡†å¤‡å¥½
     }
     catch (const std::exception& e) {
         std::cerr << "Error processing characteristic value: " << e.what() << std::endl;
@@ -191,7 +191,7 @@ void BluetoothLEManager::PrintDevices() const {
     std::wcout << L"Devices count: " << devices.size() << std::endl;
     for (const auto& device : devices) {
         std::wcout << L"Name: " << device.name << L", ID: " << device.id.c_str() << L", Address: " << device.address << L", Signal Strength: " << device.signalStrength << L" dBm" << std::endl;
-        std::wcout.flush(); // Ë¢ĞÂ»º³åÇø
+        std::wcout.flush(); // åˆ·æ–°ç¼“å†²åŒº
     }
 }
 
@@ -219,9 +219,9 @@ void BluetoothLEManager::OnAdvertisementReceived(BluetoothLEAdvertisementWatcher
 
     auto id = hstring(std::to_wstring(args.BluetoothAddress()));
 
-    // ¼ì²éÉè±¸ÊÇ·ñÒÑ¾­´æÔÚ
+    // æ£€æŸ¥è®¾å¤‡æ˜¯å¦å·²ç»å­˜åœ¨
     if (deviceIds.find(id) == deviceIds.end()) {
-        deviceIds.insert(id); // ²åÈëµ½¼¯ºÏÖĞ
+        deviceIds.insert(id); // æ’å…¥åˆ°é›†åˆä¸­
 
         DeviceInfo deviceInfo{
             deviceName,
@@ -236,10 +236,10 @@ void BluetoothLEManager::OnAdvertisementReceived(BluetoothLEAdvertisementWatcher
 
 std::wstring BluetoothLEManager::GetDeviceNameFromBluetoothLEDevice(uint64_t bluetoothAddress) {
     try {
-        // »ñÈ¡Éè±¸ÊµÀı
+        // è·å–è®¾å¤‡å®ä¾‹
         auto device = winrt::Windows::Devices::Bluetooth::BluetoothLEDevice::FromBluetoothAddressAsync(bluetoothAddress).get();
         if (device != nullptr) {
-            // ·µ»ØÉè±¸Ãû³Æ
+            // è¿”å›è®¾å¤‡åç§°
             return device.Name().c_str();
         }
     }
@@ -261,7 +261,7 @@ std::wstring BluetoothLEManager::FormatBluetoothAddress(uint64_t address) {
     return stream.str();
 }
 
-// µÈ´ıÊı¾İ½ÓÊÕ²¢½øĞĞ´¦ÀíµÄ¹«¹²·½·¨
+// ç­‰å¾…æ•°æ®æ¥æ”¶å¹¶è¿›è¡Œå¤„ç†çš„å…¬å…±æ–¹æ³•
 void BluetoothLEManager::WaitForDataAndProcess() {
     std::unique_lock<std::mutex> lock(m_mutex);
     m_cvBLEManager.wait(lock, [this] { return !m_vReceivedData.empty(); });

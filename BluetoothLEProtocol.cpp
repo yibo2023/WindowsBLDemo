@@ -1,6 +1,6 @@
 #include "BluetoothLEProtocol.h"
 
-// ¼ÆËã¸ø¶¨Êý¾ÝµÄ checksum
+// ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ýµï¿½ checksum
 uint8_t BLEProtocol::calculateChecksum(const uint8_t* data, size_t length) {
     uint8_t checksum = 0;
     for (size_t i = 0; i < length; ++i) {
@@ -14,7 +14,7 @@ void BLEProtocol::ProtoRequest::calculateChecksum(std::vector<uint8_t>& combined
     combinedData.resize(1); // Header should fit in 1 byte
     uint8_t byte = 0;
     byte |= static_cast<uint8_t>(header.type) & 0x03;    // Extract type (2 bits)
-    byte |= (header.length - 2 & 0x3F) << 2;             // Extract length (6 bits)
+    byte |= (header.length & 0x3F) << 2;                 // Extract length (6 bits)
     combinedData[0] = byte;
     combinedData.push_back(request.id);
     combinedData.push_back(request.type);
@@ -78,7 +78,7 @@ uint8_t BLEProtocol::getProtoLength(const ProtoRequest& proto) {
 }
 
 int BLEProtocol::checkChecksum(const ProtoRequest& proto, uint8_t proto_len, uint8_t sum) {
-    // ¼ÆËãÊµ¼ÊµÄ checksum
+    // ï¿½ï¿½ï¿½ï¿½Êµï¿½Êµï¿½ checksum
     std::vector<uint8_t> combinedData;
     combinedData.push_back(static_cast<uint8_t>(proto.header.type));
     combinedData.push_back(proto.header.length);

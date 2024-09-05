@@ -18,13 +18,13 @@ public:
 
     void ScanForDevices();
     void ConnectToDevice(const std::wstring& deviceName);
-    void DisconnectFromDevice();  // ĞÂÔöµÄ¶Ï¿ªÁ¬½Ó¹¦ÄÜÉùÃ÷
+    void DisconnectFromDevice();  // æ–°å¢çš„æ–­å¼€è¿æ¥åŠŸèƒ½å£°æ˜
     void SendData(const std::vector<uint8_t>& data, uint32_t serviceIndex = 0, uint32_t characteristicIndex = 0);
     void ReceiveData(uint32_t serviceIndex = 0, uint32_t characteristicIndex = 0);
     const std::vector<uint8_t>& GetReceivedData() const;
     void PrintDevices() const;
 
-    // µÈ´ıÊı¾İ½ÓÊÕ²¢½øĞĞ´¦ÀíµÄ¹«¹²·½·¨
+    // ç­‰å¾…æ•°æ®æ¥æ”¶å¹¶è¿›è¡Œå¤„ç†çš„å…¬å…±æ–¹æ³•
     void WaitForDataAndProcess();
 
 private:
@@ -37,8 +37,8 @@ private:
     };
 
     std::vector<DeviceInfo> devices;
-    std::vector<uint8_t> m_vReceivedData;  // ´æ´¢½ÓÊÕµ½µÄÊı¾İ
-    std::unordered_set<winrt::hstring> deviceIds; // ÓÃÓÚÈ¥ÖØµÄ¼¯ºÏ
+    std::vector<uint8_t> m_vReceivedData;  // å­˜å‚¨æ¥æ”¶åˆ°çš„æ•°æ®
+    std::unordered_set<winrt::hstring> deviceIds; // ç”¨äºå»é‡çš„é›†åˆ
     std::mutex m_mutex;
     std::condition_variable m_cvBLEManager;
 
@@ -55,7 +55,7 @@ private:
     void OnCharacteristicValueChanged(winrt::Windows::Devices::Bluetooth::GenericAttributeProfile::GattCharacteristic const& sender,
         winrt::Windows::Devices::Bluetooth::GenericAttributeProfile::GattValueChangedEventArgs const& args);
 
-    // ¸¨Öúº¯Êı£º»ñÈ¡Ö¸¶¨Ë÷ÒıµÄ GATT ·şÎñºÍÌØÕ÷
+    // è¾…åŠ©å‡½æ•°ï¼šè·å–æŒ‡å®šç´¢å¼•çš„ GATT æœåŠ¡å’Œç‰¹å¾
     winrt::Windows::Devices::Bluetooth::GenericAttributeProfile::GattDeviceService GetGattService(uint32_t index);
     winrt::Windows::Devices::Bluetooth::GenericAttributeProfile::GattCharacteristic GetGattCharacteristic(
         const winrt::Windows::Devices::Bluetooth::GenericAttributeProfile::GattDeviceService& service, uint32_t index);
